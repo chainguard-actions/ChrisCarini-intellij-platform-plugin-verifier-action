@@ -1,1 +1,15 @@
-# ChrisCarini-intellij-platform-plugin-verifier-action
+# ChrisCarini/intellij-platform-plugin-verifier-action
+
+A GitHub Action for IntelliJ Platform Plugins to verify their compatibility with various JetBrains IDEs.
+
+Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/ChrisCarini/intellij-platform-plugin-verifier-action](https://github.com/ChrisCarini/intellij-platform-plugin-verifier-action).
+
+## Versions
+
+| Version | Tag | Upstream commit |
+|---------|-----|-----------------|
+| v2.0.3 | [`v2.0.3`](https://github.com/chainguard-actions/ChrisCarini-intellij-platform-plugin-verifier-action/tree/v2.0.3) | [`d04116a`](https://github.com/ChrisCarini/intellij-platform-plugin-verifier-action/commit/d04116ac843966179c3d74ed298cfce2ddfbb0ad) |
+
+## Privacy
+
+This Action contacts Chainguard's licensing server to verify authorization. Connection metadata (IP address, GitHub repository identifier, timestamp, and any metadata encoded in the auth token) is transmitted to Chainguard, Inc. even if authorization is denied in accordance with our [Privacy Notice](https://www.chainguard.dev/legal/privacy-notice)
