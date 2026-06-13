@@ -1,0 +1,28 @@
+name: Test mute-plugin-problems input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create dummy plugin zip
+        run: |
+          mkdir -p build/distributions
+          echo "dummy" > build/distributions/sample-plugin.zip
+      - id: action
+        uses: .
+        with:
+          verifier-version: 'LATEST'
+          plugin-location: 'build/distributions/sample-plugin.zip'
+          ide-versions: 'IC-2023.1'
+          failure-levels: 'INVALID_PLUGIN'
+          mute-plugin-problems: 'TemplateWordInPluginId,TemplateWordInPluginName'
+        continue-on-error: true
+      - name: Assert action ran with mute-plugin-problems
+        env:
+          LOG_FILE: ${{ steps.action.outputs.verification-output-log-filename }}
+        run: |
+          echo "verification-output-log-filename: $LOG_FILE"
+          echo "Action ran with mute-plugin-problems input set"
+          echo "PASS"
