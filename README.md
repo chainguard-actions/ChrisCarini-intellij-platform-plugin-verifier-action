@@ -1,0 +1,1 @@
+# ChrisCarini-intellij-platform-plugin-verifier-action
