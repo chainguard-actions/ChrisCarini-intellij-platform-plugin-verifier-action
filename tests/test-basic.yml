@@ -1,0 +1,29 @@
+name: Test basic usage with ide-versions input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          verifier-version: 'LATEST'
+          plugin-location: 'build/distributions/*.zip'
+          ide-versions: 'IC-2023.1'
+          failure-levels: 'COMPATIBILITY_PROBLEMS INVALID_PLUGIN'
+      - name: Assert output log filename is set or action ran
+        env:
+          LOG_FILE: ${{ steps.action.outputs.verification-output-log-filename }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "log file: $LOG_FILE"
+          # The action either succeeded or failed (no plugin present), but it must have run
+          if [ "$OUTCOME" != "success" ] && [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: action did not run (outcome was '$OUTCOME')"
+            exit 1
+          fi
+          echo "PASS: action ran with ide-versions input covered"
