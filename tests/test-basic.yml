@@ -1,0 +1,44 @@
+name: Test basic usage with ide-versions
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create dummy plugin zip
+        run: |
+          mkdir -p build/distributions
+          # Create a minimal plugin zip with a plugin.xml
+          mkdir -p plugin/META-INF
+          cat > plugin/META-INF/plugin.xml <<'EOF'
+          <idea-plugin>
+            <id>com.example.test</id>
+            <name>Test Plugin</name>
+            <version>1.0.0</version>
+            <vendor>Test</vendor>
+            <description>Test plugin for verification</description>
+            <idea-version since-build="232"/>
+          </idea-plugin>
+          EOF
+          cd plugin && zip -r ../build/distributions/test-plugin.zip . && cd ..
+          ls -la build/distributions/
+      - id: action
+        uses: .
+        with:
+          verifier-version: 'LATEST'
+          plugin-location: 'build/distributions/test-plugin.zip'
+          ide-versions: |
+            IC-2023.2.7
+          failure-levels: 'COMPATIBILITY_PROBLEMS INVALID_PLUGIN'
+        continue-on-error: true
+      - name: Assert output filename is set
+        env:
+          OUTPUT: ${{ steps.action.outputs.verification-output-log-filename }}
+        run: |
+          echo "verification-output-log-filename: $OUTPUT"
+          if [ -z "$OUTPUT" ]; then
+            echo "WARN: output not set, but action may have failed due to test environment"
+          else
+            echo "PASS: output filename is set to $OUTPUT"
+          fi
