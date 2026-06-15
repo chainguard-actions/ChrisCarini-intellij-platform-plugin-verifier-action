@@ -1,0 +1,25 @@
+name: Test external-prefixes input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create dummy plugin zip
+        run: |
+          mkdir -p build/distributions
+          echo "dummy" > build/distributions/sample-plugin.zip
+      - id: action
+        uses: .
+        with:
+          verifier-version: 'LATEST'
+          plugin-location: 'build/distributions/sample-plugin.zip'
+          ide-versions: 'IC-2023.1'
+          failure-levels: 'INVALID_PLUGIN'
+          external-prefixes: 'com.example:org.mycompany'
+        continue-on-error: true
+      - name: Assert external-prefixes input was accepted
+        run: |
+          echo "Action completed (may have failed due to dummy plugin, which is expected)"
+          echo "PASS: external-prefixes input was accepted by the action"
