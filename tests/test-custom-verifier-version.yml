@@ -1,4 +1,4 @@
-name: Test basic usage - plugin verifier runs and produces output log
+name: Test custom verifier version
 on:
   workflow_dispatch:
 jobs:
@@ -7,11 +7,10 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Create a minimal fake plugin zip file so the action has something to verify
+      # Create a minimal fake plugin zip file
       - name: Create fake plugin zip
         run: |
           mkdir -p build/distributions
-          # Create a minimal zip with a plugin.xml to make it look like a plugin
           mkdir -p fake-plugin/META-INF
           cat > fake-plugin/META-INF/plugin.xml <<'EOF'
           <idea-plugin>
@@ -31,11 +30,11 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          verifier-version: 'LATEST'
+          # Use a specific known verifier version instead of LATEST
+          verifier-version: '1.307'
           plugin-location: 'build/distributions/fake-plugin-*.zip'
           ide-versions: |
             ideaIC:2023.1
-          # Exclude INVALID_PLUGIN so the action doesn't fail solely due to fake plugin structure
           failure-levels: 'COMPATIBILITY_PROBLEMS'
 
       - name: Assert output log filename is set

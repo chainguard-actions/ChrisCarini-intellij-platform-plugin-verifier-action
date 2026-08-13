@@ -1,4 +1,4 @@
-name: Test basic usage - plugin verifier runs and produces output log
+name: Test mute-plugin-problems input suppresses specific plugin problem rules
 on:
   workflow_dispatch:
 jobs:
@@ -11,7 +11,6 @@ jobs:
       - name: Create fake plugin zip
         run: |
           mkdir -p build/distributions
-          # Create a minimal zip with a plugin.xml to make it look like a plugin
           mkdir -p fake-plugin/META-INF
           cat > fake-plugin/META-INF/plugin.xml <<'EOF'
           <idea-plugin>
@@ -19,7 +18,7 @@ jobs:
             <name>Fake Plugin</name>
             <version>1.0.0</version>
             <vendor>Test</vendor>
-            <description>A fake plugin for testing</description>
+            <description>A fake plugin for testing mute-plugin-problems</description>
             <idea-version since-build="203"/>
           </idea-plugin>
           EOF
@@ -35,16 +34,17 @@ jobs:
           plugin-location: 'build/distributions/fake-plugin-*.zip'
           ide-versions: |
             ideaIC:2023.1
-          # Exclude INVALID_PLUGIN so the action doesn't fail solely due to fake plugin structure
           failure-levels: 'COMPATIBILITY_PROBLEMS'
+          # Pass a mute-plugin-problems value to exercise this input path
+          mute-plugin-problems: 'TemplateWordInPluginId'
 
-      - name: Assert output log filename is set
+      - name: Assert output log filename is set when mute-plugin-problems is used
         env:
           LOG_FILE: ${{ steps.action.outputs.verification-output-log-filename }}
         run: |
           echo "verification-output-log-filename: $LOG_FILE"
           if [ -z "$LOG_FILE" ]; then
-            echo "FAIL: expected verification-output-log-filename to be set"
+            echo "FAIL: expected verification-output-log-filename to be set even when mute-plugin-problems is specified"
             exit 1
           fi
-          echo "PASS: output log filename is set to '$LOG_FILE'"
+          echo "PASS: output log filename is set to '$LOG_FILE' with mute-plugin-problems input accepted"

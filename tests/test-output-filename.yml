@@ -1,0 +1,70 @@
+name: Test output filename output is set after verification
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # This test downloads the verifier JAR and an IDE, then runs verification.
+    # It verifies that the output filename is correctly set to 'verification_result.log'.
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Set up a git origin reachable inside the Docker container
+      - name: Set up git origin reachable inside Docker container
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      # Create a minimal valid IntelliJ plugin zip for verification
+      - name: Create minimal plugin zip
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/build/distributions"
+          PLUGIN_DIR="/tmp/test-plugin"
+          mkdir -p "$PLUGIN_DIR/META-INF"
+          printf '%s\n' '<idea-plugin>' \
+            '  <id>com.example.testplugin</id>' \
+            '  <name>Test Plugin</name>' \
+            '  <version>1.0.0</version>' \
+            '  <vendor email="test@example.com" url="https://example.com">Test Vendor</vendor>' \
+            '  <description><![CDATA[A minimal test plugin.]]></description>' \
+            '  <idea-version since-build="203"/>' \
+            '  <depends>com.intellij.modules.platform</depends>' \
+            '</idea-plugin>' > "$PLUGIN_DIR/META-INF/plugin.xml"
+          cd "$PLUGIN_DIR" && zip -r "$GITHUB_WORKSPACE/build/distributions/test-plugin.zip" .
+          echo "Plugin zip created:"
+          ls -lh "$GITHUB_WORKSPACE/build/distributions/"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          verifier-version: 'LATEST'
+          plugin-location: 'build/distributions/test-plugin.zip'
+          ide-versions: 'ideaIC:2023.1'
+          failure-levels: 'COMPATIBILITY_PROBLEMS INVALID_PLUGIN'
+
+      - name: Assert output filename is set
+        env:
+          LOG_FILENAME: ${{ steps.action.outputs.verification-output-log-filename }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          echo "log filename: $LOG_FILENAME"
+          # The output filename should be set regardless of whether verification passed or failed
+          # (it is set before the failure level checks in the entrypoint)
+          if [ -z "$LOG_FILENAME" ]; then
+            echo "FAIL: expected verification-output-log-filename to be set but it was empty"
+            echo "      This likely means the action failed before running the verifier"
+            echo "      (e.g., IDE download failed or verifier JAR download failed)"
+            exit 1
+          fi
+          if [ "$LOG_FILENAME" != "verification_result.log" ]; then
+            echo "FAIL: expected 'verification_result.log' but got '$LOG_FILENAME'"
+            exit 1
+          fi
+          echo "PASS: output filename is correctly set to '$LOG_FILENAME'"
