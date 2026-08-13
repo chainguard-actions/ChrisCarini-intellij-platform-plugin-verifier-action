@@ -1,0 +1,62 @@
+name: Test basic usage - plugin verifier with output filename
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create minimal plugin ZIP for testing
+        run: |
+          PLUGIN_DIR="/tmp/test-plugin"
+          mkdir -p "$PLUGIN_DIR/META-INF"
+          cat > "$PLUGIN_DIR/META-INF/plugin.xml" << 'EOF'
+          <idea-plugin>
+            <id>com.example.testplugin</id>
+            <name>Test Plugin</name>
+            <version>1.0.0</version>
+            <vendor>Test Vendor</vendor>
+            <description>A minimal test plugin for CI testing.</description>
+            <idea-version since-build="193"/>
+            <depends>com.intellij.modules.platform</depends>
+          </idea-plugin>
+          EOF
+          mkdir -p "$GITHUB_WORKSPACE/build/distributions"
+          cd "$PLUGIN_DIR"
+          zip -r "$GITHUB_WORKSPACE/build/distributions/test-plugin-1.0.0.zip" META-INF/
+          echo "Plugin ZIP created:"
+          ls -lh "$GITHUB_WORKSPACE/build/distributions/"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          verifier-version: '1.307'
+          plugin-location: 'build/distributions/test-plugin-1.0.0.zip'
+          ide-versions: 'ideaIC:2019.3.4'
+          failure-levels: 'COMPATIBILITY_PROBLEMS INVALID_PLUGIN'
+
+      - name: Assert verification-output-log-filename is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.verification-output-log-filename }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected verification-output-log-filename to be set but it was empty"
+            exit 1
+          fi
+          echo "PASS: verification-output-log-filename is set to '$ACTUAL'"
+
+      - name: Assert log file exists
+        env:
+          LOG_FILE: ${{ steps.action.outputs.verification-output-log-filename }}
+        run: |
+          echo "Checking for log file: $LOG_FILE"
+          if [ ! -f "$LOG_FILE" ]; then
+            echo "FAIL: expected log file '$LOG_FILE' to exist"
+            exit 1
+          fi
+          echo "PASS: log file exists"
+          echo "--- Log file contents (first 50 lines) ---"
+          head -50 "$LOG_FILE" || true

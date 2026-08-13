@@ -1,0 +1,49 @@
+name: Test output log filename value
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a minimal IntelliJ plugin ZIP for testing
+      - name: Create minimal plugin ZIP
+        run: |
+          mkdir -p /tmp/plugin/META-INF
+          cat > /tmp/plugin/META-INF/plugin.xml <<'EOF'
+          <idea-plugin>
+            <id>com.example.test-plugin</id>
+            <name>Test Plugin</name>
+            <version>1.0.0</version>
+            <vendor>Test Vendor</vendor>
+            <description>A minimal test plugin for verifier action testing.</description>
+            <idea-version since-build="203"/>
+          </idea-plugin>
+          EOF
+          mkdir -p "$GITHUB_WORKSPACE/build/distributions"
+          cd /tmp/plugin
+          zip -r "$GITHUB_WORKSPACE/build/distributions/test-plugin-1.0.0.zip" .
+          echo "Plugin ZIP created:"
+          ls -lh "$GITHUB_WORKSPACE/build/distributions/"
+
+      - id: action
+        uses: .
+        with:
+          verifier-version: '1.307'
+          plugin-location: 'build/distributions/test-plugin-1.0.0.zip'
+          ide-versions: 'ideaIC:2021.1'
+          failure-levels: 'INVALID_PLUGIN'
+        continue-on-error: true
+
+      - name: Assert output log filename equals expected value
+        env:
+          LOG_FILE: ${{ steps.action.outputs.verification-output-log-filename }}
+        run: |
+          echo "actual verification-output-log-filename: $LOG_FILE"
+          EXPECTED="verification_result.log"
+          if [ "$LOG_FILE" != "$EXPECTED" ]; then
+            echo "FAIL: expected '$EXPECTED' but got '$LOG_FILE'"
+            exit 1
+          fi
+          echo "PASS: output log filename is '$LOG_FILE'"
