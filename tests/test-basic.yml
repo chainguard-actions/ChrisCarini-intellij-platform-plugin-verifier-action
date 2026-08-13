@@ -1,4 +1,4 @@
-name: Test mute-plugin-problems input
+name: Test basic usage - output filename set
 on:
   workflow_dispatch:
 jobs:
@@ -13,44 +13,43 @@ jobs:
           mkdir -p /tmp/plugin-build/META-INF
           cat > /tmp/plugin-build/META-INF/plugin.xml <<'EOF'
           <idea-plugin>
-            <id>com.example.test-plugin-mute</id>
-            <name>Test Plugin Mute</name>
+            <id>com.example.test-plugin</id>
+            <name>Test Plugin</name>
             <version>1.0.0</version>
             <vendor>Test Vendor</vendor>
-            <description>A minimal test plugin for CI testing with muted problems.</description>
+            <description>A minimal test plugin for CI testing.</description>
             <idea-version since-build="223"/>
             <depends>com.intellij.modules.platform</depends>
           </idea-plugin>
           EOF
           cd /tmp/plugin-build
-          zip -r /tmp/test-plugin-mute.zip META-INF/
+          zip -r /tmp/test-plugin.zip META-INF/
           mkdir -p "$GITHUB_WORKSPACE/build/distributions"
-          cp /tmp/test-plugin-mute.zip "$GITHUB_WORKSPACE/build/distributions/test-plugin-mute-1.0.0.zip"
-          echo "Plugin ZIP created at: $GITHUB_WORKSPACE/build/distributions/test-plugin-mute-1.0.0.zip"
+          cp /tmp/test-plugin.zip "$GITHUB_WORKSPACE/build/distributions/test-plugin-1.0.0.zip"
+          echo "Plugin ZIP created at: $GITHUB_WORKSPACE/build/distributions/test-plugin-1.0.0.zip"
           ls -lh "$GITHUB_WORKSPACE/build/distributions/"
 
       - id: action
         uses: .
         with:
           verifier-version: '1.307'
-          plugin-location: 'build/distributions/test-plugin-mute-1.0.0.zip'
+          plugin-location: 'build/distributions/test-plugin-1.0.0.zip'
           ide-versions: 'ideaIC:2022.3.3'
           failure-levels: 'INVALID_PLUGIN'
-          mute-plugin-problems: 'TemplateWordInPluginId,TemplateWordInPluginName'
         continue-on-error: true
 
-      - name: Assert output filename is set when using mute-plugin-problems
+      - name: Assert output filename is set
         env:
           ACTUAL: ${{ steps.action.outputs.verification-output-log-filename }}
         run: |
           echo "actual: $ACTUAL"
           if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected verification-output-log-filename to be set even with mute-plugin-problems"
+            echo "FAIL: expected verification-output-log-filename to be set"
             exit 1
           fi
           echo "PASS: verification-output-log-filename is set to '$ACTUAL'"
 
-      - name: Assert output filename value with mute-plugin-problems
+      - name: Assert output filename value
         env:
           ACTUAL: ${{ steps.action.outputs.verification-output-log-filename }}
         run: |
@@ -59,4 +58,4 @@ jobs:
             echo "FAIL: expected 'verification_result.log' but got '$ACTUAL'"
             exit 1
           fi
-          echo "PASS: output filename is 'verification_result.log' with mute-plugin-problems"
+          echo "PASS: output filename is 'verification_result.log'"

@@ -1,0 +1,40 @@
+name: Test verification-output-log-filename output
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a minimal fake plugin zip inside the workspace (plugin-location is relative to GITHUB_WORKSPACE)
+      - name: Create fake plugin zip in workspace
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/build/distributions"
+          mkdir -p /tmp/fake-plugin-src
+          echo "fake plugin content" > /tmp/fake-plugin-src/plugin.xml
+          cd /tmp/fake-plugin-src
+          zip -r "$GITHUB_WORKSPACE/build/distributions/fake-plugin.zip" .
+          echo "Created fake plugin zip:"
+          ls -la "$GITHUB_WORKSPACE/build/distributions/fake-plugin.zip"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          verifier-version: 'LATEST'
+          plugin-location: 'build/distributions/fake-plugin.zip'
+          ide-versions: |
+            ideaIC:2023.1
+          failure-levels: 'COMPATIBILITY_PROBLEMS'
+
+      - name: Assert output log filename is set
+        env:
+          LOG_FILE: ${{ steps.action.outputs.verification-output-log-filename }}
+        run: |
+          echo "verification-output-log-filename: $LOG_FILE"
+          if [ -z "$LOG_FILE" ]; then
+            echo "FAIL: expected verification-output-log-filename to be set"
+            exit 1
+          fi
+          echo "PASS: verification-output-log-filename is set to '$LOG_FILE'"
