@@ -1,0 +1,49 @@
+name: Test custom failure levels
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a minimal valid IntelliJ plugin zip for testing
+      - name: Create minimal plugin zip
+        run: |
+          mkdir -p /tmp/plugin-build/META-INF
+          cat > /tmp/plugin-build/META-INF/plugin.xml << 'EOF'
+          <idea-plugin>
+            <id>com.example.test-plugin</id>
+            <name>Test Plugin</name>
+            <version>1.0.0</version>
+            <vendor>Test Vendor</vendor>
+            <description>A minimal test plugin for verification testing.</description>
+            <idea-version since-build="193" until-build="193.*"/>
+          </idea-plugin>
+          EOF
+          mkdir -p "$GITHUB_WORKSPACE/build/distributions"
+          cd /tmp/plugin-build
+          zip -r "$GITHUB_WORKSPACE/build/distributions/test-plugin-1.0.0.zip" META-INF/
+          echo "Plugin zip created:"
+          ls -lh "$GITHUB_WORKSPACE/build/distributions/"
+
+      - id: action
+        uses: .
+        with:
+          verifier-version: '1.307'
+          plugin-location: 'build/distributions/test-plugin-1.0.0.zip'
+          ide-versions: 'ideaIC:2019.3.4'
+          # Use only COMPATIBILITY_PROBLEMS as failure level (not INVALID_PLUGIN)
+          # so the action should succeed even if the plugin structure has issues
+          failure-levels: 'COMPATIBILITY_PROBLEMS'
+
+      - name: Assert output log filename is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.verification-output-log-filename }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected verification-output-log-filename to be set"
+            exit 1
+          fi
+          echo "PASS: verification-output-log-filename=$ACTUAL"

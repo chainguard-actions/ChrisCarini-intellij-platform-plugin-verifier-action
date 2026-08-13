@@ -1,4 +1,4 @@
-name: Test basic usage with ide-versions
+name: Test basic usage - plugin verification with output log filename
 on:
   workflow_dispatch:
 jobs:
@@ -6,39 +6,67 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Create dummy plugin zip
+
+      # Set up a git origin reachable inside the Docker container
+      - name: Set up git origin reachable inside Docker container
         run: |
-          mkdir -p build/distributions
-          # Create a minimal plugin zip with a plugin.xml
-          mkdir -p plugin/META-INF
-          cat > plugin/META-INF/plugin.xml <<'EOF'
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          rm -rf "$GITHUB_WORKSPACE/.git-remote"
+          git init --bare "$GITHUB_WORKSPACE/.git-remote"
+          git push "$GITHUB_WORKSPACE/.git-remote" HEAD:refs/heads/act-harness
+          git remote set-url origin "$GITHUB_WORKSPACE/.git-remote" 2>/dev/null || \
+            git remote add origin "$GITHUB_WORKSPACE/.git-remote"
+
+      # Create a minimal valid IntelliJ plugin ZIP fixture
+      - name: Create minimal plugin ZIP fixture
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/plugin/META-INF"
+          cat > "$GITHUB_WORKSPACE/tests/fixtures/plugin/META-INF/plugin.xml" << 'EOF'
           <idea-plugin>
-            <id>com.example.test</id>
+            <id>com.example.test-plugin</id>
             <name>Test Plugin</name>
             <version>1.0.0</version>
-            <vendor>Test</vendor>
-            <description>Test plugin for verification</description>
-            <idea-version since-build="232"/>
+            <vendor>Test Vendor</vendor>
+            <description>A minimal test plugin for CI verification.</description>
+            <idea-version since-build="231"/>
           </idea-plugin>
           EOF
-          cd plugin && zip -r ../build/distributions/test-plugin.zip . && cd ..
-          ls -la build/distributions/
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/plugin/lib"
+          # Create a minimal JAR (just a manifest) to simulate a plugin lib
+          mkdir -p /tmp/plugin-jar-contents/META-INF
+          cat > /tmp/plugin-jar-contents/META-INF/MANIFEST.MF << 'EOF'
+          Manifest-Version: 1.0
+          EOF
+          cd /tmp/plugin-jar-contents && zip -r /tmp/test-plugin.jar META-INF/
+          cp /tmp/test-plugin.jar "$GITHUB_WORKSPACE/tests/fixtures/plugin/lib/test-plugin.jar"
+          # Package the plugin as a ZIP
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/dist"
+          cd "$GITHUB_WORKSPACE/tests/fixtures/plugin" && zip -r "$GITHUB_WORKSPACE/tests/fixtures/dist/test-plugin-1.0.0.zip" .
+          echo "Plugin ZIP created:"
+          ls -lh "$GITHUB_WORKSPACE/tests/fixtures/dist/"
+
       - id: action
         uses: .
-        with:
-          verifier-version: 'LATEST'
-          plugin-location: 'build/distributions/test-plugin.zip'
-          ide-versions: |
-            IC-2023.2.7
-          failure-levels: 'COMPATIBILITY_PROBLEMS INVALID_PLUGIN'
         continue-on-error: true
-      - name: Assert output filename is set
+        with:
+          verifier-version: '1.307'
+          plugin-location: 'tests/fixtures/dist/test-plugin-1.0.0.zip'
+          ide-versions: |
+            ideaIC:2023.1
+          failure-levels: 'COMPATIBILITY_PROBLEMS INVALID_PLUGIN'
+
+      - name: Assert output log filename is set
         env:
-          OUTPUT: ${{ steps.action.outputs.verification-output-log-filename }}
+          ACTUAL: ${{ steps.action.outputs.verification-output-log-filename }}
         run: |
-          echo "verification-output-log-filename: $OUTPUT"
-          if [ -z "$OUTPUT" ]; then
-            echo "WARN: output not set, but action may have failed due to test environment"
-          else
-            echo "PASS: output filename is set to $OUTPUT"
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected verification-output-log-filename to be set but got empty"
+            exit 1
           fi
+          if [ "$ACTUAL" != "verification_result.log" ]; then
+            echo "FAIL: expected 'verification_result.log' but got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS: verification-output-log-filename is '$ACTUAL'"

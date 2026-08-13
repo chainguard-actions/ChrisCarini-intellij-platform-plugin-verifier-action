@@ -1,4 +1,4 @@
-name: Test mute-plugin-problems input
+name: Test LATEST verifier version resolution
 on:
   workflow_dispatch:
 jobs:
@@ -48,12 +48,11 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          verifier-version: '1.307'
+          verifier-version: 'LATEST'
           plugin-location: 'tests/fixtures/dist/test-plugin-1.0.0.zip'
           ide-versions: |
             ideaIC:2023.1
           failure-levels: 'COMPATIBILITY_PROBLEMS INVALID_PLUGIN'
-          mute-plugin-problems: 'TemplateWordInPluginId,TemplateWordInPluginName'
 
       - name: Assert output log filename is set
         env:
@@ -68,4 +67,4 @@ jobs:
             echo "FAIL: expected 'verification_result.log' but got '$ACTUAL'"
             exit 1
           fi
-          echo "PASS: verification-output-log-filename is '$ACTUAL' (mute-plugin-problems accepted)"
+          echo "PASS: verification-output-log-filename is '$ACTUAL' (LATEST verifier resolved successfully)"
